@@ -1,0 +1,79 @@
+#include <xc.h>
+#define _XTAL_FREQ 20000000 //define crystal frequency to 20MHz
+#define digit1 PORTBbits.RB0
+#define digit2 PORTBbits.RB1
+#define digit3 PORTBbits.RB2
+#define digit4 PORTBbits.RB3
+// This array stores binary bit pattern that will be send to PORTD
+unsigned char binary_pattern[]={0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
+unsigned char display1[10]= {0xBF,0x86,0xDB,0xCF,0xE6,0xED,0xFD,0x87,0xFF,0xE7};    // with dp turn on
+unsigned int a1,a2,a3,a4;
+unsigned int counter = 0;
+int adc_value; //store output value from Analog Read functoion
+unsigned int number;
+long tlong;
+unsigned int voltage;
+void Analog_setting(){
+    ADCON0 = 0x81;
+    ADCON1 = 0x02;
+}
+
+unsigned int Analog_read(unsigned char channel){
+    int aadc,bbdc, ccdc;
+    if(channel>7)return 0;
+    ADCON0 = ADCON0 & 0xC5;
+    ADCON0 = ADCON0 | (channel << 3);
+    __delay_ms(2);
+    ADCON0bits.GO_DONE = 1;
+    while(ADCON0bits.GO_DONE);
+    aadc = ADRESH;
+    aadc = aadc<<2;
+    bbdc = ADRESL;
+    bbdc = bbdc >>6;
+    ccdc = aadc|bbdc;
+    return ccdc;
+
+}
+void main(void) 
+{
+    Analog_setting();
+    TRISD = 0x00; //define PORTD as a output pin
+    PORTD=0X00;   // initialize PORTD pins to active low
+    TRISB=0X00;
+    digit1 = 1;
+    digit2 = 1; 
+    digit3 = 1;
+    digit4 = 1;
+    while(1)
+    {
+          adc_value = Analog_read(0);  // read data from channel 0
+           tlong = (float)adc_value*0.488768555;
+           voltage = tlong;
+        
+           a1 = voltage / 1000;   // holds 1000's digit
+           a2 = ((voltage/100)%10); // holds 100's digit
+           a3 = ((voltage/10)%10);  // holds 10th digit
+           a4 = (voltage%10);  // holds unit digit value
+           
+        
+PORTD=binary_pattern[a2]; // send 1000's place data to fourth digit
+digit1=0;   //  turn on forth display unit
+__delay_ms(3);
+digit1=1;   //  turn off forth display unit
+PORTD=display1[a3];  // send 100's place data to 3rd digit
+digit2=0;    //  turn on 3rd display unit
+__delay_ms(3);
+digit2=1;  //  turn off 3rd display unit
+PORTD=binary_pattern[a4];  // send 10th place data to 2nd digit
+digit3 = 0;  //  turn on 2nd display unit
+__delay_ms(3);
+ digit3 = 1;   //  turn off 2nd display unit
+PORTD=binary_pattern[a1];  // send unit place data to 1st digit
+digit4 = 0;  //  turn on 1st display unit
+__delay_ms(3);
+digit4 = 1;  //  turn off 1st display unit
+
+
+    }
+    return ;
+}
